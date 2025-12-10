@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, UserPlus, Users, Settings } from "lucide-react";
+import { Home, UserPlus, Users, Settings, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import headerBg from "@assets/generated_images/subtle_blue_geometric_header_background.png";
 
@@ -54,6 +54,16 @@ export default function MobileLayout({ children, title }: MobileLayoutProps) {
             </a>
           </Link>
 
+          <Link href="/backup">
+            <a className={cn(
+              "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors duration-200",
+              location === "/backup" ? "text-primary" : "text-gray-400 hover:text-gray-600"
+            )}>
+              <Database className={cn("w-6 h-6", location === "/backup" && "fill-current")} />
+              <span className="text-[10px] font-medium">نسخ احتياطي</span>
+            </a>
+          </Link>
+
           <div className="relative -top-6">
             <Link href="/add">
               <a className="flex items-center justify-center w-14 h-14 rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-all duration-200 ring-4 ring-white">
@@ -69,6 +79,16 @@ export default function MobileLayout({ children, title }: MobileLayoutProps) {
             )}>
               <Users className={cn("w-6 h-6", location === "/students" && "fill-current")} />
               <span className="text-[10px] font-medium">الطلاب</span>
+            </a>
+          </Link>
+
+          <Link href="/settings">
+            <a className={cn(
+              "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors duration-200",
+              location === "/settings" ? "text-primary" : "text-gray-400 hover:text-gray-600"
+            )}>
+              <Settings className={cn("w-6 h-6", location === "/settings" && "fill-current")} />
+              <span className="text-[10px] font-medium">الإعدادات</span>
             </a>
           </Link>
         </nav>
