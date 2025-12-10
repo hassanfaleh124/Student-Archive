@@ -3,7 +3,8 @@ import { useLocation, useRoute } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useStudentStore } from "@/lib/student-store";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getStudent, updateStudent } from "@/lib/api";
 import MobileLayout from "@/components/layout/MobileLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,13 +23,17 @@ const formSchema = z.object({
 export default function EditStudent() {
   const [, params] = useRoute("/edit/:id");
   const [, setLocation] = useLocation();
-  const { students, updateStudent } = useStudentStore();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const studentId = params?.id;
-  const student = students.find(s => s.id === studentId);
+  const studentId = params?.id || "";
+  const { data: student, isLoading } = useQuery({
+    queryKey: ["student", studentId],
+    queryFn: () => getStudent(studentId),
+    enabled: !!studentId,
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,26 +56,35 @@ export default function EditStudent() {
       if (student.photoUrl) {
         setPhotoPreview(student.photoUrl);
       }
-    } else {
-      setLocation("/students");
     }
-  }, [student, form, setLocation]);
+  }, [student, form]);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => updateStudent(studentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["student", studentId] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: "تم تحديث بيانات الطالب",
+        duration: 3000,
+      });
+      setTimeout(() => setLocation(`/student/${studentId}`), 500);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "فشل في تحديث البيانات",
+      });
+    },
+  });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!studentId) return;
-    
-    updateStudent(studentId, {
+    updateMutation.mutate({
       ...values,
       photoUrl: photoPreview || undefined,
     });
-    
-    toast({
-      title: "تم الحفظ بنجاح",
-      description: "تم تحديث بيانات الطالب",
-      duration: 3000,
-    });
-
-    setTimeout(() => setLocation(`/student/${studentId}`), 500);
   }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +98,20 @@ export default function EditStudent() {
     }
   };
 
-  if (!student) return null;
+  if (isLoading) {
+    return (
+      <MobileLayout title="تعديل الطالب">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="animate-pulse text-gray-400">جاري التحميل...</div>
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  if (!student) {
+    setLocation("/students");
+    return null;
+  }
 
   return (
     <MobileLayout title="تعديل الطالب">
@@ -94,6 +121,7 @@ export default function EditStudent() {
           size="sm" 
           className="text-gray-500 hover:text-gray-900 gap-1 pr-0"
           onClick={() => setLocation(`/student/${studentId}`)}
+          data-testid="button-cancel"
         >
           <ArrowRight className="h-4 w-4" />
           <span>إلغاء</span>
@@ -103,11 +131,11 @@ export default function EditStudent() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" dir="rtl">
           
-          {/* Photo Upload Section */}
           <div className="flex flex-col items-center justify-center mb-8">
             <div 
               className="relative w-32 h-32 rounded-full bg-gray-100 border-4 border-white shadow-lg overflow-hidden cursor-pointer group transition-all hover:scale-105"
               onClick={() => fileInputRef.current?.click()}
+              data-testid="button-upload-photo"
             >
               {photoPreview ? (
                 <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
@@ -143,7 +171,7 @@ export default function EditStudent() {
                 <FormItem>
                   <FormLabel>اسم الطالب</FormLabel>
                   <FormControl>
-                    <Input placeholder="أدخل اسم الطالب رباعي" {...field} className="text-right h-12 rounded-xl bg-white" />
+                    <Input placeholder="أدخل اسم الطالب رباعي" {...field} className="text-right h-12 rounded-xl bg-white" data-testid="input-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -157,7 +185,7 @@ export default function EditStudent() {
                 <FormItem>
                   <FormLabel>اسم الأم</FormLabel>
                   <FormControl>
-                    <Input placeholder="أدخل اسم الأم" {...field} className="text-right h-12 rounded-xl bg-white" />
+                    <Input placeholder="أدخل اسم الأم" {...field} className="text-right h-12 rounded-xl bg-white" data-testid="input-mother-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -172,7 +200,7 @@ export default function EditStudent() {
                   <FormItem>
                     <FormLabel>رقم القيد</FormLabel>
                     <FormControl>
-                      <Input placeholder="0000" type="number" {...field} className="text-center h-12 rounded-xl bg-white font-mono" />
+                      <Input placeholder="0000" type="text" {...field} className="text-center h-12 rounded-xl bg-white font-mono" data-testid="input-registration" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -186,7 +214,7 @@ export default function EditStudent() {
                   <FormItem>
                     <FormLabel>رقم الصفحة</FormLabel>
                     <FormControl>
-                      <Input placeholder="00" type="number" {...field} className="text-center h-12 rounded-xl bg-white font-mono" />
+                      <Input placeholder="00" type="text" {...field} className="text-center h-12 rounded-xl bg-white font-mono" data-testid="input-page" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -198,9 +226,11 @@ export default function EditStudent() {
           <Button 
             type="submit" 
             className="w-full h-14 text-lg font-medium rounded-2xl shadow-lg shadow-primary/25 mt-8 hover:scale-[1.02] transition-transform"
+            disabled={updateMutation.isPending}
+            data-testid="button-submit"
           >
             <CheckCircle2 className="mr-2 h-5 w-5" />
-            حفظ التعديلات
+            {updateMutation.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
           </Button>
 
         </form>

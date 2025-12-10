@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useStudentStore } from "@/lib/student-store";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createStudent } from "@/lib/api";
 import MobileLayout from "@/components/layout/MobileLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,8 @@ const formSchema = z.object({
 
 export default function AddStudent() {
   const [, setLocation] = useLocation();
-  const { addStudent } = useStudentStore();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,20 +37,31 @@ export default function AddStudent() {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: createStudent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "تمت الإضافة بنجاح",
+        description: "تم إضافة الطالب إلى السجلات",
+        duration: 3000,
+      });
+      setTimeout(() => setLocation("/students"), 500);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "فشل في إضافة الطالب",
+      });
+    },
+  });
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addStudent({
+    createMutation.mutate({
       ...values,
       photoUrl: photoPreview || undefined,
     });
-    
-    toast({
-      title: "تمت الإضافة بنجاح",
-      description: `تم إضافة الطالب ${values.name} إلى السجلات`,
-      duration: 3000,
-    });
-
-    // Animate out or delay slightly
-    setTimeout(() => setLocation("/students"), 500);
   }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,11 +80,11 @@ export default function AddStudent() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" dir="rtl">
           
-          {/* Photo Upload Section */}
           <div className="flex flex-col items-center justify-center mb-8">
             <div 
               className="relative w-32 h-32 rounded-full bg-gray-100 border-4 border-white shadow-lg overflow-hidden cursor-pointer group transition-all hover:scale-105"
               onClick={() => fileInputRef.current?.click()}
+              data-testid="button-upload-photo"
             >
               {photoPreview ? (
                 <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
@@ -108,7 +120,7 @@ export default function AddStudent() {
                 <FormItem>
                   <FormLabel>اسم الطالب</FormLabel>
                   <FormControl>
-                    <Input placeholder="أدخل اسم الطالب رباعي" {...field} className="text-right h-12 rounded-xl bg-white" />
+                    <Input placeholder="أدخل اسم الطالب رباعي" {...field} className="text-right h-12 rounded-xl bg-white" data-testid="input-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -122,7 +134,7 @@ export default function AddStudent() {
                 <FormItem>
                   <FormLabel>اسم الأم</FormLabel>
                   <FormControl>
-                    <Input placeholder="أدخل اسم الأم" {...field} className="text-right h-12 rounded-xl bg-white" />
+                    <Input placeholder="أدخل اسم الأم" {...field} className="text-right h-12 rounded-xl bg-white" data-testid="input-mother-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -137,7 +149,7 @@ export default function AddStudent() {
                   <FormItem>
                     <FormLabel>رقم القيد</FormLabel>
                     <FormControl>
-                      <Input placeholder="0000" type="number" {...field} className="text-center h-12 rounded-xl bg-white font-mono" />
+                      <Input placeholder="0000" type="text" {...field} className="text-center h-12 rounded-xl bg-white font-mono" data-testid="input-registration" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -151,7 +163,7 @@ export default function AddStudent() {
                   <FormItem>
                     <FormLabel>رقم الصفحة</FormLabel>
                     <FormControl>
-                      <Input placeholder="00" type="number" {...field} className="text-center h-12 rounded-xl bg-white font-mono" />
+                      <Input placeholder="00" type="text" {...field} className="text-center h-12 rounded-xl bg-white font-mono" data-testid="input-page" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -163,9 +175,11 @@ export default function AddStudent() {
           <Button 
             type="submit" 
             className="w-full h-14 text-lg font-medium rounded-2xl shadow-lg shadow-primary/25 mt-8 hover:scale-[1.02] transition-transform"
+            disabled={createMutation.isPending}
+            data-testid="button-submit"
           >
             <CheckCircle2 className="mr-2 h-5 w-5" />
-            حفظ البيانات
+            {createMutation.isPending ? "جاري الحفظ..." : "حفظ البيانات"}
           </Button>
 
         </form>

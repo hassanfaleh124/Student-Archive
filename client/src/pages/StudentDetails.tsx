@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useStudentStore } from "@/lib/student-store";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getStudent, updateStudent, deleteStudent } from "@/lib/api";
 import MobileLayout from "@/components/layout/MobileLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,16 +11,88 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function StudentDetails() {
   const [, params] = useRoute("/student/:id");
   const [, setLocation] = useLocation();
-  const { students, updateStudent } = useStudentStore();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const studentId = params?.id;
-  const student = students.find(s => s.id === studentId);
+  const studentId = params?.id || "";
+  const { data: student, isLoading } = useQuery({
+    queryKey: ["student", studentId],
+    queryFn: () => getStudent(studentId),
+    enabled: !!studentId,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { photoUrl?: string }) => updateStudent(studentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["student", studentId] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "تم تحديث الصورة",
+        description: "تم تغيير صورة الطالب بنجاح",
+        duration: 3000,
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteStudent(studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الطالب بنجاح",
+        duration: 3000,
+      });
+      setLocation("/students");
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "فشل في حذف الطالب",
+      });
+    },
+  });
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateMutation.mutate({ photoUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <MobileLayout title="تفاصيل الطالب">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="animate-pulse text-gray-400">جاري التحميل...</div>
+        </div>
+      </MobileLayout>
+    );
+  }
 
   if (!student) {
     return (
@@ -29,7 +102,7 @@ export default function StudentDetails() {
             <User className="w-8 h-8 text-red-500" />
           </div>
           <h2 className="text-xl font-bold text-gray-900">الطالب غير موجود</h2>
-          <Button onClick={() => setLocation("/students")} variant="outline">
+          <Button onClick={() => setLocation("/students")} variant="outline" data-testid="button-back">
             العودة للقائمة
           </Button>
         </div>
@@ -37,67 +110,61 @@ export default function StudentDetails() {
     );
   }
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && studentId) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateStudent(studentId, { photoUrl: reader.result as string });
-        toast({
-          title: "تم تحديث الصورة",
-          description: "تم تغيير صورة الطالب بنجاح",
-          duration: 3000,
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleCameraClick = () => {
-    fileInputRef.current?.click();
-  };
-
   return (
     <MobileLayout title="تفاصيل الطالب">
       <div className="space-y-6">
-        {/* Header / Back Button */}
         <div className="flex items-center justify-between">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setLocation("/students")}
             className="rounded-full hover:bg-gray-100"
+            data-testid="button-back"
           >
             <ArrowRight className="w-6 h-6 text-gray-600" />
           </Button>
           <div className="flex gap-2">
-            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full">
-              <Trash2 className="w-5 h-5" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full" data-testid="button-delete">
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>هل أنت متأكد؟</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم حذف بيانات الطالب نهائياً ولا يمكن التراجع عن هذا الإجراء.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-red-500 hover:bg-red-600">
+                    حذف
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button 
               variant="ghost" 
               size="icon" 
               className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
               onClick={() => setLocation(`/edit/${student.id}`)}
+              data-testid="button-edit"
             >
               <Edit className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
-        {/* Profile Header */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center text-center space-y-4"
         >
-          <div className="relative group cursor-pointer" onClick={handleCameraClick}>
+          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} data-testid="button-change-photo">
             <Avatar className="w-32 h-32 border-4 border-white shadow-xl ring-4 ring-primary/10 transition-transform group-hover:scale-105">
-              <AvatarImage src={student.photoUrl} className="object-cover" />
+              <AvatarImage src={student.photoUrl || undefined} className="object-cover" />
               <AvatarFallback className="bg-primary/5 text-primary text-4xl font-bold">
                 {student.name.charAt(0)}
               </AvatarFallback>
@@ -121,12 +188,11 @@ export default function StudentDetails() {
           </div>
           
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{student.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900" data-testid="text-student-name">{student.name}</h1>
             <p className="text-gray-500 text-sm mt-1">تاريخ الإضافة: {format(student.createdAt, "d MMMM yyyy", { locale: ar })}</p>
           </div>
         </motion.div>
 
-        {/* Info Cards */}
         <div className="grid grid-cols-1 gap-4 mt-8">
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
@@ -140,7 +206,7 @@ export default function StudentDetails() {
                 </div>
                 <div className="flex-1 p-4 text-right">
                   <p className="text-xs text-gray-500 mb-1">اسم الأم</p>
-                  <p className="font-medium text-gray-900">{student.motherName}</p>
+                  <p className="font-medium text-gray-900" data-testid="text-mother-name">{student.motherName}</p>
                 </div>
               </CardContent>
             </Card>
@@ -159,7 +225,7 @@ export default function StudentDetails() {
                   </div>
                   <div className="p-4 text-center flex-1 flex flex-col justify-center">
                     <p className="text-xs text-gray-500 mb-1">رقم القيد</p>
-                    <p className="font-mono font-bold text-xl text-gray-900">{student.registrationNumber}</p>
+                    <p className="font-mono font-bold text-xl text-gray-900" data-testid="text-registration">{student.registrationNumber}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -177,7 +243,7 @@ export default function StudentDetails() {
                   </div>
                   <div className="p-4 text-center flex-1 flex flex-col justify-center">
                     <p className="text-xs text-gray-500 mb-1">رقم الصفحة</p>
-                    <p className="font-mono font-bold text-xl text-gray-900">{student.pageNumber}</p>
+                    <p className="font-mono font-bold text-xl text-gray-900" data-testid="text-page">{student.pageNumber}</p>
                   </div>
                 </CardContent>
               </Card>

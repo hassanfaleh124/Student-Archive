@@ -1,38 +1,68 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { type Student, type InsertStudent, students } from "@shared/schema";
+import { db } from "../db";
+import { eq, or, ilike, desc } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getAllStudents(): Promise<Student[]>;
+  getStudent(id: string): Promise<Student | undefined>;
+  createStudent(student: InsertStudent): Promise<Student>;
+  updateStudent(id: string, data: Partial<InsertStudent>): Promise<Student | undefined>;
+  deleteStudent(id: string): Promise<boolean>;
+  searchStudents(query: string): Promise<Student[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getAllStudents(): Promise<Student[]> {
+    return await db.select().from(students).orderBy(desc(students.createdAt));
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getStudent(id: string): Promise<Student | undefined> {
+    const result = await db.select().from(students).where(eq(students.id, id)).limit(1);
+    return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createStudent(studentData: InsertStudent): Promise<Student> {
+    const result = await db
+      .insert(students)
+      .values({
+        ...studentData,
+        createdAt: Date.now(),
+      })
+      .returning();
+    return result[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateStudent(id: string, data: Partial<InsertStudent>): Promise<Student | undefined> {
+    const result = await db
+      .update(students)
+      .set(data)
+      .where(eq(students.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteStudent(id: string): Promise<boolean> {
+    const result = await db.delete(students).where(eq(students.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async searchStudents(query: string): Promise<Student[]> {
+    if (!query) {
+      return this.getAllStudents();
+    }
+
+    return await db
+      .select()
+      .from(students)
+      .where(
+        or(
+          ilike(students.name, `%${query}%`),
+          ilike(students.motherName, `%${query}%`),
+          ilike(students.registrationNumber, `%${query}%`)
+        )
+      )
+      .orderBy(desc(students.createdAt));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
