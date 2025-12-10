@@ -7,12 +7,15 @@ import NotFound from "@/pages/not-found";
 import StudentList from "@/pages/StudentList";
 import AddStudent from "@/pages/AddStudent";
 
+import StudentDetails from "@/pages/StudentDetails";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={StudentList} />
       <Route path="/students" component={StudentList} />
       <Route path="/add" component={AddStudent} />
+      <Route path="/student/:id" component={StudentDetails} />
       <Route component={NotFound} />
     </Switch>
   );
