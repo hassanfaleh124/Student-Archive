@@ -1,18 +1,22 @@
+import { useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useStudentStore } from "@/lib/student-store";
 import MobileLayout from "@/components/layout/MobileLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, User, BookOpen, Hash, Calendar, MapPin, Edit, Trash2 } from "lucide-react";
+import { ArrowRight, User, BookOpen, Hash, Edit, Trash2, Camera } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 export default function StudentDetails() {
   const [, params] = useRoute("/student/:id");
   const [, setLocation] = useLocation();
-  const { students } = useStudentStore();
+  const { students, updateStudent } = useStudentStore();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const studentId = params?.id;
   const student = students.find(s => s.id === studentId);
@@ -32,6 +36,30 @@ export default function StudentDetails() {
       </MobileLayout>
     );
   }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && studentId) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateStudent(studentId, { photoUrl: reader.result as string });
+        toast({
+          title: "تم تحديث الصورة",
+          description: "تم تغيير صورة الطالب بنجاح",
+          duration: 3000,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCameraClick = () => {
+    fileInputRef.current?.click();
+  };
 
   return (
     <MobileLayout title="تفاصيل الطالب">
@@ -67,14 +95,29 @@ export default function StudentDetails() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center text-center space-y-4"
         >
-          <div className="relative">
-            <Avatar className="w-32 h-32 border-4 border-white shadow-xl ring-4 ring-primary/10">
+          <div className="relative group cursor-pointer" onClick={handleCameraClick}>
+            <Avatar className="w-32 h-32 border-4 border-white shadow-xl ring-4 ring-primary/10 transition-transform group-hover:scale-105">
               <AvatarImage src={student.photoUrl} className="object-cover" />
               <AvatarFallback className="bg-primary/5 text-primary text-4xl font-bold">
                 {student.name.charAt(0)}
               </AvatarFallback>
             </Avatar>
-            <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 border-4 border-white rounded-full"></div>
+            
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera className="w-8 h-8 text-white" />
+            </div>
+
+            <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-white border-4 border-white rounded-full flex items-center justify-center shadow-md">
+              <Camera className="w-4 h-4" />
+            </div>
+            
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept="image/*"
+              onChange={handlePhotoUpload}
+            />
           </div>
           
           <div>
