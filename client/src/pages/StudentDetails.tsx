@@ -50,7 +50,12 @@ export default function StudentDetails() {
             <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full">
               <Trash2 className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
+              onClick={() => setLocation(`/edit/${student.id}`)}
+            >
               <Edit className="w-5 h-5" />
             </Button>
           </div>

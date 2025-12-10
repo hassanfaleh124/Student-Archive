@@ -9,6 +9,7 @@ import AddStudent from "@/pages/AddStudent";
 
 import StudentDetails from "@/pages/StudentDetails";
 import BackupPage from "@/pages/BackupPage";
+import EditStudent from "@/pages/EditStudent";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={StudentList} />
       <Route path="/students" component={StudentList} />
       <Route path="/add" component={AddStudent} />
+      <Route path="/edit/:id" component={EditStudent} />
       <Route path="/student/:id" component={StudentDetails} />
       <Route path="/backup" component={BackupPage} />
       <Route component={NotFound} />

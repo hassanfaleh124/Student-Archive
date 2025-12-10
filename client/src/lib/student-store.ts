@@ -14,6 +14,8 @@ export interface Student {
 interface StudentStore {
   students: Student[];
   addStudent: (student: Omit<Student, 'id' | 'createdAt'>) => void;
+  updateStudent: (id: string, data: Partial<Omit<Student, 'id' | 'createdAt'>>) => void;
+  deleteStudent: (id: string) => void;
   searchStudents: (query: string) => Student[];
 }
 
@@ -56,6 +58,16 @@ export const useStudentStore = create<StudentStore>()(
             },
             ...state.students,
           ],
+        })),
+      updateStudent: (id, data) =>
+        set((state) => ({
+          students: state.students.map((s) =>
+            s.id === id ? { ...s, ...data } : s
+          ),
+        })),
+      deleteStudent: (id) =>
+        set((state) => ({
+          students: state.students.filter((s) => s.id !== id),
         })),
       searchStudents: (query) => {
         const { students } = get();
