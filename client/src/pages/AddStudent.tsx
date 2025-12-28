@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Camera, Upload, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { database } from '../firebaseConfig'; 
+import { ref, push } from 'firebase/database';
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
   motherName: z.string().min(2, "اسم الأم مطلوب"),
@@ -57,12 +59,33 @@ export default function AddStudent() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    createMutation.mutate({
+    function onSubmit(values: z.infer<typeof formSchema>) {
+    // 1. تحديد مكان الحفظ في Firebase (جدول الطلاب)
+    const studentRef = ref(database, 'students');
+    
+    // 2. إرسال البيانات الفعلية
+    push(studentRef, {
       ...values,
       photoUrl: photoPreview || undefined,
+      createdAt: new Date().toISOString()
+    }).then(() => {
+      // إظهار رسالة نجاح في حال اكتمال الإرسال
+      toast({
+        title: "تمت الإضافة بنجاح",
+        description: "تم حفظ بيانات الطالب في Firebase",
+      });
+      // الانتقال لصفحة عرض الطلاب بعد نصف ثانية
+      setTimeout(() => setLocation("/students"), 500);
+    }).catch((error) => {
+      // إظهار رسالة خطأ في حال فشل الاتصال
+      toast({
+        variant: "destructive",
+        title: "فشل الإرسال",
+        description: "تأكد من اتصالك بالإنترنت: " + error.message,
+      });
     });
   }
+
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
