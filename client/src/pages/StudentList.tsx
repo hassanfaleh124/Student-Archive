@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { database } from '../firebaseConfig'; 
+import { database } from '../firebaseConfig.ts'; 
 import { ref, onValue } from 'firebase/database';
 
 export default function StudentList() {
