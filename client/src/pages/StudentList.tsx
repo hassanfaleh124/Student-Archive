@@ -4,7 +4,7 @@ import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, MapPin, User } from "lucide-react";
+import { Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { database } from '../firebaseConfig'; 
 import { ref, onValue } from 'firebase/database';
@@ -24,7 +24,7 @@ export default function StudentList() {
           ...data[key]
         }));
         const filtered = query 
-          ? studentList.filter(s => s.name?.includes(query)) 
+          ? studentList.filter(s => s.name?.toLowerCase().includes(query.toLowerCase())) 
           : studentList;
         setStudents(filtered);
       } else {
