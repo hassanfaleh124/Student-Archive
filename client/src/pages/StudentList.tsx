@@ -9,12 +9,42 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, MapPin, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { useEffect } from "react"; // ضروري لتشغيل جلب البيانات عند فتح الصفحة
+import { database } from '../firebaseConfig'; //
+import { ref, onValue } from 'firebase/database';
 export default function StudentList() {
-  const [query, setQuery] = useState("");
-  const { data: students = [], isLoading } = useQuery({
-    queryKey: ["students", query],
-    queryFn: () => searchStudents(query),
-  });
+    const [students, setStudents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // الإشارة لمجلد الطلاب في قاعدة بياناتك
+    const studentsRef = ref(database, 'students');
+    
+    // جلب البيانات في الوقت الفعلي
+    const unsubscribe = onValue(studentsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // تحويل البيانات من Object إلى Array لعرضها في القائمة
+        const studentList = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        
+        // ربط البحث بالفلترة
+        const filtered = query 
+          ? studentList.filter(s => s.name?.includes(query)) 
+          : studentList;
+          
+        setStudents(filtered);
+      } else {
+        setStudents([]);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [query]);
+
 
   return (
     <MobileLayout title="قائمة الطلاب">
