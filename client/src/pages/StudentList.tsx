@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/layout/MobileLayout";
